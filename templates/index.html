@@ -1,0 +1,55 @@
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Artist Portfolio</title>
+    <style>
+      body{font-family:system-ui, sans-serif; background:#f6f6f6; color:#111; margin:0}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px;padding:24px;max-width:1400px;margin:0 auto}
+      .card{background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.1);overflow:hidden;transition:transform 0.2s, box-shadow 0.2s}
+      .card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.15)}
+      .card img{width:100%;height:240px;object-fit:cover;display:block}
+      .meta{padding:16px}
+      .meta h3{margin:0 0 8px 0;font-size:1.2em}
+      .meta p{color:#666;margin:0 0 8px 0;line-height:1.4}
+      .meta small{color:#999;font-size:0.9em}
+      header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#222;color:#fff}
+      header h1{margin:0;font-size:1.5em}
+      a.button{background:#4CAF50;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:500;transition:background 0.2s}
+      a.button:hover{background:#45a049}
+      .empty-state{text-align:center;padding:60px 24px;color:#666}
+      .empty-state h2{margin:0 0 16px 0;color:#333}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Artist Portfolio</h1>
+      <div>
+        <a class="button" href="/admin">Admin</a>
+      </div>
+    </header>
+    <main>
+      {% if works %}
+      <div class="grid">
+        {% for work in works %}
+        <article class="card">
+          <img src="/static/uploads/{{ work.filename }}" alt="{{ work.title }}" loading="lazy">
+          <div class="meta">
+            <h3>{{ work.title }}</h3>
+            <p>{{ work.description or '' }}</p>
+            <small>Added {{ work.created_at[:10] }}</small>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <h2>No artwork yet</h2>
+        <p>Check back soon for new additions to the portfolio.</p>
+      </div>
+      {% endif %}
+    </main>
+  </body>
+</html>
