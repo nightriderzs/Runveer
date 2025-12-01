@@ -1,12 +1,13 @@
 """
-Flask Artist Portfolio - Optimized for Render Deployment
+Flask Artist Portfolio - Optimized for Render with Port Fallback
 File: app.py
 
 Features:
 - Single-file Flask app for easy deployment
+- Automatic port fallback if port 5000 is busy
 - SQLite database with automatic admin creation
-- Admin panel for image management
-- Optional Telegram integration
+- Admin panel for image management and background customization
+- Background pattern/image/color customization
 - Modern lightbox image viewer
 - Artistic "Runveer" header design
 - Production-ready configuration
@@ -17,6 +18,7 @@ Environment Variables for Render:
 - ADMIN_PASSWORD: Admin login password (optional)
 - TELEGRAM_TOKEN: Bot token (optional)
 - TELEGRAM_CHAT_ID: Telegram chat ID (optional)
+- PORT: Server port (automatically set by Render)
 """
 
 import os
@@ -25,6 +27,8 @@ import threading
 import time
 import logging
 import secrets
+import json
+import socket
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -59,14 +63,23 @@ except ImportError:
 # --- Config ---
 BASE_DIR = Path(__file__).parent.resolve()
 UPLOAD_FOLDER = BASE_DIR / 'static' / 'uploads'
+BACKGROUNDS_FOLDER = BASE_DIR / 'static' / 'backgrounds'
 THUMBNAIL_FOLDER = BASE_DIR / 'static' / 'thumbnails'
 TEMPLATE_FOLDER = BASE_DIR / 'templates'
 DB_PATH = BASE_DIR / 'portfolio.db'
 CONFIG_PATH = BASE_DIR / '.env'
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_BACKGROUND_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
 THUMBNAIL_SIZE = (400, 400)
+
+# Default background patterns (will be created on first run)
+DEFAULT_BACKGROUNDS = {
+    'pattern1': 'geometric-pattern.svg',
+    'pattern2': 'watercolor-texture.jpg',
+    'pattern3': 'abstract-art.jpg'
+}
 
 # Configure logging
 logging.basicConfig(
@@ -75,12 +88,49 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def create_default_backgrounds():
+    """Create default background patterns and images"""
+    BACKGROUNDS_FOLDER.mkdir(parents=True, exist_ok=True)
+    
+    # Create geometric pattern SVG
+    geometric_svg = '''<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#8B4513" stop-opacity="0.1"/>
+                <stop offset="100%" stop-color="#D2691E" stop-opacity="0.1"/>
+            </linearGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#grad1)"/>
+        <circle cx="25" cy="25" r="8" fill="#8B4513" opacity="0.3"/>
+        <circle cx="75" cy="75" r="8" fill="#D2691E" opacity="0.3"/>
+        <rect x="40" y="40" width="20" height="20" fill="#F4A460" opacity="0.2"/>
+    </svg>'''
+    
+    (BACKGROUNDS_FOLDER / 'geometric-pattern.svg').write_text(geometric_svg)
+    
+    # Create simple placeholder images
+    if PIL_AVAILABLE:
+        try:
+            # Watercolor texture
+            watercolor = Image.new('RGB', (200, 200), color=(250, 243, 224))
+            (BACKGROUNDS_FOLDER / 'watercolor-texture.jpg').write_text("placeholder")
+            
+            # Abstract art
+            abstract = Image.new('RGB', (200, 200), color=(245, 230, 208))
+            (BACKGROUNDS_FOLDER / 'abstract-art.jpg').write_text("placeholder")
+        except:
+            pass
+
 # Bootstrap folders and basic templates
 def bootstrap():
     """Create necessary directories and default templates"""
     UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+    BACKGROUNDS_FOLDER.mkdir(parents=True, exist_ok=True)
     THUMBNAIL_FOLDER.mkdir(parents=True, exist_ok=True)
     TEMPLATE_FOLDER.mkdir(parents=True, exist_ok=True)
+    
+    # Create default backgrounds
+    create_default_backgrounds()
     
     # Create default templates if they don't exist
     if not (TEMPLATE_FOLDER / 'index.html').exists():
@@ -90,7 +140,7 @@ def bootstrap():
     if not (TEMPLATE_FOLDER / 'login.html').exists():
         (TEMPLATE_FOLDER / 'login.html').write_text(LOGIN_HTML)
 
-# Modern templates with artistic header and lightbox
+# Modern templates with background customization
 INDEX_HTML = '''
 <!DOCTYPE html>
 <html lang="en">
@@ -118,10 +168,13 @@ INDEX_HTML = '''
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #FAF3E0 0%, #F5E6D3 100%);
+            background: var(--body-bg, linear-gradient(135deg, #FAF3E0 0%, #F5E6D3 100%));
+            background-size: var(--bg-size, auto);
+            background-attachment: var(--bg-attachment, fixed);
             color: var(--text);
             line-height: 1.6;
             min-height: 100vh;
+            transition: background 0.5s ease;
         }
 
         .artistic-header {
@@ -592,6 +645,24 @@ INDEX_HTML = '''
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             initArtworks();
+            
+            // Apply background settings from server
+            fetch('/api/background-settings')
+                .then(response => response.json())
+                .then(settings => {
+                    if (settings.background_type === 'color' && settings.background_value) {
+                        document.body.style.setProperty('--body-bg', settings.background_value);
+                    } else if (settings.background_type === 'image' && settings.background_value) {
+                        document.body.style.setProperty('--body-bg', `url('${settings.background_value}')`);
+                        document.body.style.setProperty('--bg-size', 'cover');
+                        document.body.style.setProperty('--bg-attachment', 'fixed');
+                    } else if (settings.background_type === 'pattern' && settings.background_value) {
+                        document.body.style.setProperty('--body-bg', `url('${settings.background_value}')`);
+                        document.body.style.setProperty('--bg-size', 'auto');
+                        document.body.style.setProperty('--bg-attachment', 'fixed');
+                    }
+                })
+                .catch(error => console.error('Error loading background settings:', error));
         });
     </script>
 </body>
@@ -607,6 +678,12 @@ ADMIN_HTML = '''
     <title>Admin - Runveer Portfolio</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -614,6 +691,7 @@ ADMIN_HTML = '''
             padding: 20px;
             min-height: 100vh;
         }
+
         .admin-container {
             max-width: 1200px;
             margin: 0 auto;
@@ -622,67 +700,93 @@ ADMIN_HTML = '''
             box-shadow: 0 20px 60px rgba(0,0,0,0.1);
             overflow: hidden;
         }
+
         .admin-header {
             background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
             color: white;
             padding: 2rem;
             text-align: center;
         }
+
         .admin-header h1 {
             margin: 0;
             font-size: 2.5rem;
             font-weight: 700;
         }
+
         .admin-nav {
             background: #2C1810;
             padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
+
         .admin-nav a {
             color: white;
             text-decoration: none;
             padding: 0.5rem 1rem;
             border-radius: 5px;
             transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
+
         .admin-nav a:hover {
             background: rgba(255,255,255,0.1);
         }
+
         .admin-content {
             padding: 2rem;
         }
+
         .alert {
             padding: 1rem;
             border-radius: 10px;
             margin-bottom: 1rem;
         }
+
         .alert.success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
+
         .alert.error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        .upload-form {
+
+        .section {
             background: #f8f9fa;
             padding: 2rem;
             border-radius: 15px;
             margin-bottom: 2rem;
         }
-        .form-group {
-            margin-bottom: 1rem;
+
+        .section h2 {
+            color: #2C1810;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
             color: #333;
         }
+
         .form-control {
             width: 100%;
             padding: 0.75rem;
@@ -691,10 +795,12 @@ ADMIN_HTML = '''
             font-size: 1rem;
             transition: border-color 0.3s;
         }
+
         .form-control:focus {
             outline: none;
             border-color: #8B4513;
         }
+
         .btn {
             background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
             color: white;
@@ -705,20 +811,31 @@ ADMIN_HTML = '''
             font-size: 1rem;
             font-weight: 600;
             transition: transform 0.3s, box-shadow 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
+
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(139, 69, 19, 0.3);
         }
+
         .btn.delete {
             background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         }
+
+        .btn.secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        }
+
         .artworks-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 1.5rem;
-            margin-top: 2rem;
+            margin-top: 1rem;
         }
+
         .artwork-item {
             background: white;
             border-radius: 15px;
@@ -726,30 +843,102 @@ ADMIN_HTML = '''
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             transition: transform 0.3s;
         }
+
         .artwork-item:hover {
             transform: translateY(-5px);
         }
+
         .artwork-image {
             width: 100%;
             height: 200px;
             object-fit: cover;
         }
+
         .artwork-details {
             padding: 1rem;
         }
+
         .artwork-title {
             font-weight: 600;
             margin-bottom: 0.5rem;
             color: #333;
         }
+
         .artwork-date {
             color: #666;
             font-size: 0.9rem;
             margin-bottom: 1rem;
         }
+
         .artwork-actions {
             display: flex;
             gap: 0.5rem;
+        }
+
+        .background-preview {
+            width: 100%;
+            height: 150px;
+            border-radius: 10px;
+            margin: 1rem 0;
+            border: 2px solid #e9ecef;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .color-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            margin: 0.5rem 0;
+        }
+
+        .tab-container {
+            margin: 1rem 0;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            background: #8B4513;
+            color: white;
+            border-color: #8B4513;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .admin-nav {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .artworks-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-buttons {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -763,6 +952,7 @@ ADMIN_HTML = '''
         <div class="admin-nav">
             <div>
                 <a href="/"><i class="fas fa-home"></i> View Portfolio</a>
+                <a href="/admin#background"><i class="fas fa-image"></i> Background Settings</a>
             </div>
             <div>
                 <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
@@ -778,7 +968,8 @@ ADMIN_HTML = '''
                 {% endif %}
             {% endwith %}
 
-            <div class="upload-form">
+            <!-- Upload Section -->
+            <div class="section" id="upload">
                 <h2><i class="fas fa-upload"></i> Upload New Artwork</h2>
                 <form method="post" action="/admin/upload" enctype="multipart/form-data">
                     <div class="form-group">
@@ -797,7 +988,69 @@ ADMIN_HTML = '''
                 </form>
             </div>
 
-            <div class="artworks-section">
+            <!-- Background Settings Section -->
+            <div class="section" id="background">
+                <h2><i class="fas fa-image"></i> Background Customization</h2>
+                
+                <div class="tab-container">
+                    <div class="tab-buttons">
+                        <button class="tab-button active" onclick="openTab('color-tab')">Solid Color</button>
+                        <button class="tab-button" onclick="openTab('image-tab')">Custom Image</button>
+                        <button class="tab-button" onclick="openTab('pattern-tab')">Pattern</button>
+                    </div>
+
+                    <!-- Color Tab -->
+                    <div id="color-tab" class="tab-content active">
+                        <form method="post" action="/admin/update-background">
+                            <input type="hidden" name="background_type" value="color">
+                            <div class="form-group">
+                                <label for="background_color">Choose Background Color</label>
+                                <input type="color" class="form-control" id="background_color" name="background_value" value="#FAF3E0" style="height: 60px;">
+                            </div>
+                            <div class="background-preview" id="colorPreview" style="background: #FAF3E0;"></div>
+                            <button type="submit" class="btn"><i class="fas fa-save"></i> Apply Color Background</button>
+                        </form>
+                    </div>
+
+                    <!-- Image Tab -->
+                    <div id="image-tab" class="tab-content">
+                        <form method="post" action="/admin/update-background" enctype="multipart/form-data">
+                            <input type="hidden" name="background_type" value="image">
+                            <div class="form-group">
+                                <label for="background_image">Upload Background Image</label>
+                                <input type="file" class="form-control" id="background_image" name="background_file" accept="image/*">
+                            </div>
+                            <div class="form-group">
+                                <label>Or use default gradient</label>
+                                <button type="button" class="btn secondary" onclick="setDefaultGradient()">
+                                    <i class="fas fa-palette"></i> Use Default Gradient
+                                </button>
+                            </div>
+                            <button type="submit" class="btn"><i class="fas fa-save"></i> Apply Image Background</button>
+                        </form>
+                    </div>
+
+                    <!-- Pattern Tab -->
+                    <div id="pattern-tab" class="tab-content">
+                        <form method="post" action="/admin/update-background">
+                            <input type="hidden" name="background_type" value="pattern">
+                            <div class="form-group">
+                                <label for="background_pattern">Choose Pattern</label>
+                                <select class="form-control" id="background_pattern" name="background_value">
+                                    <option value="/static/backgrounds/geometric-pattern.svg">Geometric Pattern</option>
+                                    <option value="/static/backgrounds/watercolor-texture.jpg">Watercolor Texture</option>
+                                    <option value="/static/backgrounds/abstract-art.jpg">Abstract Art</option>
+                                </select>
+                            </div>
+                            <div class="background-preview" id="patternPreview" style="background: url('/static/backgrounds/geometric-pattern.svg')"></div>
+                            <button type="submit" class="btn"><i class="fas fa-save"></i> Apply Pattern Background</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Artworks Management Section -->
+            <div class="section" id="artworks">
                 <h2><i class="fas fa-images"></i> Manage Artworks ({{ works|length }})</h2>
                 {% if works %}
                 <div class="artworks-grid">
@@ -829,6 +1082,49 @@ ADMIN_HTML = '''
             </div>
         </div>
     </div>
+
+    <script>
+        function openTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+
+            // Remove active class from all buttons
+            const tabButtons = document.getElementsByClassName('tab-button');
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove('active');
+            }
+
+            // Show the specific tab content and activate the button
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Update color preview
+        document.getElementById('background_color').addEventListener('input', function() {
+            document.getElementById('colorPreview').style.background = this.value;
+        });
+
+        // Update pattern preview
+        document.getElementById('background_pattern').addEventListener('change', function() {
+            document.getElementById('patternPreview').style.background = `url('${this.value}')`;
+        });
+
+        function setDefaultGradient() {
+            document.querySelector('input[name="background_type"]').value = 'color';
+            document.querySelector('input[name="background_value"]').value = 'linear-gradient(135deg, #FAF3E0 0%, #F5E6D3 100%)';
+        }
+
+        // Handle hash in URL for tab navigation
+        window.addEventListener('load', function() {
+            const hash = window.location.hash;
+            if (hash === '#background') {
+                document.getElementById('background').scrollIntoView();
+            }
+        });
+    </script>
 </body>
 </html>
 '''
@@ -970,11 +1266,35 @@ load_dotenv(CONFIG_PATH)
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
+# --- Background Settings ---
+
+def get_background_settings():
+    """Get current background settings"""
+    settings_file = BASE_DIR / 'background_settings.json'
+    default_settings = {
+        'background_type': 'color',
+        'background_value': 'linear-gradient(135deg, #FAF3E0 0%, #F5E6D3 100%)'
+    }
+    
+    if settings_file.exists():
+        try:
+            with open(settings_file, 'r') as f:
+                return json.load(f)
+        except:
+            return default_settings
+    return default_settings
+
+def save_background_settings(settings):
+    """Save background settings to file"""
+    settings_file = BASE_DIR / 'background_settings.json'
+    with open(settings_file, 'w') as f:
+        json.dump(settings, f)
+
 # --- File validation helpers ---
 
-def allowed_file_ext(filename):
+def allowed_file_ext(filename, allowed_extensions):
     """Check if file extension is allowed"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 def validate_image(file_stream):
     """Validate image file using PIL if available"""
@@ -991,17 +1311,17 @@ def validate_image(file_stream):
         logger.warning(f"Image validation failed: {e}")
         return False
 
-def allowed_file(file):
+def allowed_file(file, allowed_extensions):
     """Comprehensive file validation"""
     if not file or not file.filename:
         return False
     
     # Check extension
-    if not allowed_file_ext(file.filename):
+    if not allowed_file_ext(file.filename, allowed_extensions):
         return False
     
-    # Check content type
-    if not file.content_type or not file.content_type.startswith('image/'):
+    # Check content type for images
+    if allowed_extensions == ALLOWED_EXTENSIONS and (not file.content_type or not file.content_type.startswith('image/')):
         return False
     
     return True
@@ -1135,6 +1455,11 @@ def index():
     works = cur.fetchall()
     return render_template('index.html', works=works)
 
+@app.route('/api/background-settings')
+def background_settings():
+    """API endpoint to get background settings"""
+    return jsonify(get_background_settings())
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page"""
@@ -1192,7 +1517,7 @@ def upload():
             flash('No file selected', 'error')
             return redirect(url_for('admin'))
         
-        if not allowed_file(file):
+        if not allowed_file(file, ALLOWED_EXTENSIONS):
             flash('Invalid file type. Allowed: ' + ', '.join(ALLOWED_EXTENSIONS), 'error')
             return redirect(url_for('admin'))
         
@@ -1235,6 +1560,45 @@ def upload():
         flash('Upload failed', 'error')
     
     return redirect(url_for('admin'))
+
+@app.route('/admin/update-background', methods=['POST'])
+@login_required
+def update_background():
+    """Update background settings"""
+    try:
+        background_type = request.form.get('background_type')
+        background_value = request.form.get('background_value')
+        
+        if background_type == 'image' and 'background_file' in request.files:
+            file = request.files['background_file']
+            if file and file.filename:
+                if allowed_file(file, ALLOWED_BACKGROUND_EXTENSIONS):
+                    # Generate secure filename
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    original_ext = secure_filename(file.filename).rsplit('.', 1)[-1].lower()
+                    filename = f"bg_{timestamp}.{original_ext}"
+                    dest_path = BACKGROUNDS_FOLDER / filename
+                    
+                    # Save file
+                    file.save(str(dest_path))
+                    background_value = f"/static/backgrounds/{filename}"
+                else:
+                    flash('Invalid background image file', 'error')
+                    return redirect(url_for('admin') + '#background')
+        
+        settings = {
+            'background_type': background_type,
+            'background_value': background_value
+        }
+        
+        save_background_settings(settings)
+        flash('Background updated successfully!')
+        
+    except Exception as e:
+        logger.error(f"Background update error: {e}")
+        flash('Failed to update background', 'error')
+    
+    return redirect(url_for('admin') + '#background')
 
 @app.route('/admin/delete', methods=['POST'])
 @login_required
@@ -1391,6 +1755,17 @@ def start_telegram_bot(token, allowed_chat_id):
         logger.error(f"Failed to start Telegram bot: {e}")
         return None
 
+def find_available_port(start_port=5000, max_attempts=10):
+    """Find an available port starting from start_port"""
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', port))
+                return port
+        except OSError:
+            continue
+    return start_port  # Fallback to start_port if none available
+
 # --- App startup ---
 
 def main():
@@ -1412,11 +1787,22 @@ def main():
     else:
         logger.warning("Telegram token or chat ID not set; Telegram integration disabled")
     
-    # Start Flask app
-    logger.info("Starting Flask app")
-    
-    # Get port from environment variable (for Render)
+    # Get port from environment variable (for Render) or find available port
     port = int(os.environ.get('PORT', 5000))
+    
+    # If port 5000 is specified but busy, find another port
+    if port == 5000:
+        try:
+            # Test if port 5000 is available
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', 5000))
+        except OSError:
+            logger.warning("Port 5000 is busy, finding available port...")
+            port = find_available_port(5001, 10)
+            logger.info(f"Using alternative port: {port}")
+    
+    # Start Flask app
+    logger.info(f"Starting Flask app on port {port}")
     
     try:
         app.run(host='0.0.0.0', port=port, debug=False)
