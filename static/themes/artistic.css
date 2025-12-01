@@ -1,0 +1,25 @@
+
+:root {
+    --primary: #E27D60;
+    --secondary: #85DCB0;
+    --accent: #E8A87C;
+    --dark: #41B3A3;
+    --light: #FDF6E3;
+    --text: #2C3E50;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+body {
+    font-family: 'Playfair Display', serif;
+    background: linear-gradient(135deg, #FDF6E3 0%, #F5E6D3 100%);
+    color: var(--text);
+}
+
+.artistic-header {
+    background: linear-gradient(135deg, var(--dark) 0%, var(--primary) 100%);
+}
+
+.artwork-card {
+    background: white;
+    border-radius: 15px;
+}

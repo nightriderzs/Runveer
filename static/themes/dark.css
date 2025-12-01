@@ -1,0 +1,25 @@
+
+:root {
+    --primary: #A0522D;
+    --secondary: #CD853F;
+    --accent: #DEB887;
+    --dark: #1A0F08;
+    --light: #2D1B0F;
+    --text: #E8DECD;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, var(--dark) 0%, #3A2516 100%);
+    color: var(--text);
+}
+
+.artistic-header {
+    background: linear-gradient(135deg, #1A0F08 0%, var(--primary) 100%);
+}
+
+.artwork-card {
+    background: #2D1B0F;
+    color: var(--text);
+}

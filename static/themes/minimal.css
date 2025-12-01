@@ -1,0 +1,25 @@
+
+:root {
+    --primary: #666666;
+    --secondary: #888888;
+    --accent: #AAAAAA;
+    --dark: #333333;
+    --light: #FFFFFF;
+    --text: #333333;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--light);
+    color: var(--text);
+}
+
+.artistic-header {
+    background: var(--dark);
+}
+
+.artwork-card {
+    background: var(--light);
+    border: 1px solid #e0e0e0;
+}
