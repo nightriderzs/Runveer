@@ -1,27 +1,22 @@
 """
-Flask artist portfolio with login + direct Telegram image uploads
-Enhanced version with better security, thumbnails, and error handling
+Flask Artist Portfolio - Optimized for Render Deployment
+File: app.py
 
 Features:
-- Single-file Flask app that bootstraps its folders and templates on first run
-- SQLite database to store "works" metadata
-- Admin login with password hashing
-- Admin UI to upload images, edit/delete entries
-- Telegram integration for automatic image downloads (optional)
-- Thumbnail generation
-- Enhanced security and file validation
+- Single-file Flask app for easy deployment
+- SQLite database with automatic admin creation
+- Admin panel for image management
+- Optional Telegram integration
+- Modern lightbox image viewer
+- Artistic "Runveer" header design
+- Production-ready configuration
 
-Security notes:
-- Use environment variables for sensitive data
-- For production: Use HTTPS, CSRF protection, rate limiting, etc.
-
-Requirements:
-- Python 3.8+
-- pip install flask python-dotenv python-telegram-bot==13.15 Pillow
-
-Run:
-- export TELEGRAM_TOKEN=... TELEGRAM_CHAT_ID=... FLASK_SECRET=...
-- python3 flask_portfolio_enhanced.py
+Environment Variables for Render:
+- FLASK_SECRET: Random secret key
+- ADMIN_USERNAME: Admin login username (optional)
+- ADMIN_PASSWORD: Admin login password (optional)
+- TELEGRAM_TOKEN: Bot token (optional)
+- TELEGRAM_CHAT_ID: Telegram chat ID (optional)
 """
 
 import os
@@ -52,11 +47,6 @@ try:
     TELEGRAM_AVAILABLE = True
 except ImportError:
     print("Telegram bot features disabled: python-telegram-bot not installed")
-    # Create dummy classes for type hints
-    class Update:
-        pass
-    class CallbackContext:
-        pass
 
 # Try to import PIL for image processing
 PIL_AVAILABLE = False
@@ -100,197 +90,872 @@ def bootstrap():
     if not (TEMPLATE_FOLDER / 'login.html').exists():
         (TEMPLATE_FOLDER / 'login.html').write_text(LOGIN_HTML)
 
-# Default templates
+# Modern templates with artistic header and lightbox
 INDEX_HTML = '''
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Artist Portfolio</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runveer - Artist Portfolio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-      body{font-family:system-ui, sans-serif; background:#f6f6f6; color:#111; margin:0}
-      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px;padding:24px;max-width:1400px;margin:0 auto}
-      .card{background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.1);overflow:hidden;transition:transform 0.2s, box-shadow 0.2s}
-      .card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.15)}
-      .card img{width:100%;height:240px;object-fit:cover;display:block}
-      .meta{padding:16px}
-      .meta h3{margin:0 0 8px 0;font-size:1.2em}
-      .meta p{color:#666;margin:0 0 8px 0;line-height:1.4}
-      .meta small{color:#999;font-size:0.9em}
-      header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#222;color:#fff}
-      header h1{margin:0;font-size:1.5em}
-      a.button{background:#4CAF50;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:500;transition:background 0.2s}
-      a.button:hover{background:#45a049}
-      .empty-state{text-align:center;padding:60px 24px;color:#666}
-      .empty-state h2{margin:0 0 16px 0;color:#333}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #8B4513;
+            --secondary: #D2691E;
+            --accent: #F4A460;
+            --dark: #2C1810;
+            --light: #FAF3E0;
+            --text: #333333;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #FAF3E0 0%, #F5E6D3 100%);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .artistic-header {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--primary) 100%);
+            color: white;
+            padding: 4rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header-title {
+            font-family: 'Georgia', serif;
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, var(--accent), #FFD700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            letter-spacing: 2px;
+        }
+
+        .header-subtitle {
+            font-size: 1.4rem;
+            font-weight: 300;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+            font-style: italic;
+        }
+
+        .header-decoration {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(244, 164, 96, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(210, 105, 30, 0.05) 0%, transparent 50%);
+        }
+
+        .admin-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(45deg, var(--secondary), var(--accent));
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .admin-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(210, 105, 30, 0.3);
+        }
+
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+            padding: 4rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .artwork-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .artwork-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .artwork-image {
+            width: 100%;
+            height: 280px;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .artwork-card:hover .artwork-image {
+            transform: scale(1.05);
+        }
+
+        .artwork-info {
+            padding: 1.5rem;
+        }
+
+        .artwork-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .artwork-description {
+            color: #666;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .artwork-date {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        /* Lightbox Styles */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .lightbox.active {
+            display: flex;
+            opacity: 1;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .lightbox-image {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-info {
+            position: absolute;
+            bottom: -80px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+        }
+
+        .lightbox-title {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .lightbox-description {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: -50px;
+            right: 0;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2.5rem;
+            cursor: pointer;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.3s ease;
+        }
+
+        .lightbox-close:hover {
+            color: var(--accent);
+        }
+
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            font-size: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .lightbox-nav:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .lightbox-prev {
+            left: 2rem;
+        }
+
+        .lightbox-next {
+            right: 2rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 6rem 2rem;
+            color: #666;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--dark);
+        }
+
+        .empty-state p {
+            font-size: 1.2rem;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .header-title {
+                font-size: 2.5rem;
+            }
+
+            .header-subtitle {
+                font-size: 1.1rem;
+            }
+
+            .portfolio-grid {
+                grid-template-columns: 1fr;
+                padding: 2rem 1rem;
+                gap: 1.5rem;
+            }
+
+            .lightbox-nav {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+
+            .lightbox-prev {
+                left: 1rem;
+            }
+
+            .lightbox-next {
+                right: 1rem;
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
-  </head>
-  <body>
-    <header>
-      <h1>Artist Portfolio</h1>
-      <div>
-        <a class="button" href="/admin">Admin</a>
-      </div>
+</head>
+<body>
+    <!-- Artistic Header -->
+    <header class="artistic-header">
+        <div class="header-decoration"></div>
+        <div class="header-content">
+            <h1 class="header-title">Runveer</h1>
+            <p class="header-subtitle">Where Art Meets Soul • Visual Stories Unveiled</p>
+            <a href="/admin" class="admin-button">
+                <i class="fas fa-palette"></i>
+                Admin Gallery
+            </a>
+        </div>
     </header>
+
+    <!-- Main Portfolio Grid -->
     <main>
-      {% if works %}
-      <div class="grid">
-        {% for work in works %}
-        <article class="card">
-          <img src="/static/uploads/{{ work.filename }}" alt="{{ work.title }}" loading="lazy">
-          <div class="meta">
-            <h3>{{ work.title }}</h3>
-            <p>{{ work.description or '' }}</p>
-            <small>Added {{ work.created_at[:10] }}</small>
-          </div>
-        </article>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="empty-state">
-        <h2>No artwork yet</h2>
-        <p>Check back soon for new additions to the portfolio.</p>
-      </div>
-      {% endif %}
+        {% if works %}
+        <div class="portfolio-grid" id="portfolioGrid">
+            {% for work in works %}
+            <div class="artwork-card" 
+                 onclick="openLightbox({{ loop.index0 }})"
+                 data-title="{{ work.title }}"
+                 data-description="{{ work.description or 'No description available' }}"
+                 data-image="/static/uploads/{{ work.filename }}">
+                <img src="/static/uploads/{{ work.filename }}" 
+                     alt="{{ work.title }}" 
+                     class="artwork-image"
+                     loading="lazy">
+                <div class="artwork-info">
+                    <h3 class="artwork-title">{{ work.title }}</h3>
+                    {% if work.description %}
+                    <p class="artwork-description">{{ work.description }}</p>
+                    {% endif %}
+                    <div class="artwork-date">
+                        <i class="far fa-calendar"></i>
+                        {{ work.created_at[:10] }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-paint-brush"></i>
+            <h2>Gallery Awaits Your Masterpieces</h2>
+            <p>No artwork has been added yet. Start by uploading your first piece through the admin panel.</p>
+            <a href="/admin" class="admin-button" style="margin-top: 2rem;">
+                <i class="fas fa-plus"></i>
+                Add First Artwork
+            </a>
+        </div>
+        {% endif %}
     </main>
-  </body>
+
+    <!-- Lightbox Modal -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">
+            <i class="fas fa-times"></i>
+        </button>
+        <button class="lightbox-nav lightbox-prev" onclick="navigateLightbox(-1)">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <button class="lightbox-nav lightbox-next" onclick="navigateLightbox(1)">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <div class="lightbox-content">
+            <img id="lightboxImage" class="lightbox-image" src="" alt="">
+            <div class="lightbox-info">
+                <h3 id="lightboxTitle" class="lightbox-title"></h3>
+                <p id="lightboxDescription" class="lightbox-description"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentArtworks = [];
+        let currentIndex = 0;
+
+        // Initialize artworks data
+        function initArtworks() {
+            const cards = document.querySelectorAll('.artwork-card');
+            currentArtworks = Array.from(cards).map(card => ({
+                title: card.dataset.title,
+                description: card.dataset.description,
+                image: card.dataset.image
+            }));
+        }
+
+        // Open lightbox
+        function openLightbox(index) {
+            initArtworks();
+            currentIndex = index;
+            updateLightbox();
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close lightbox
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Navigate lightbox
+        function navigateLightbox(direction) {
+            currentIndex += direction;
+            if (currentIndex < 0) {
+                currentIndex = currentArtworks.length - 1;
+            } else if (currentIndex >= currentArtworks.length) {
+                currentIndex = 0;
+            }
+            updateLightbox();
+        }
+
+        // Update lightbox content
+        function updateLightbox() {
+            const artwork = currentArtworks[currentIndex];
+            const image = document.getElementById('lightboxImage');
+            const title = document.getElementById('lightboxTitle');
+            const description = document.getElementById('lightboxDescription');
+
+            // Show loading state
+            image.style.opacity = '0';
+            
+            image.onload = function() {
+                image.style.opacity = '1';
+            };
+            
+            image.src = artwork.image;
+            title.textContent = artwork.title;
+            description.textContent = artwork.description;
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('active')) return;
+
+            switch(e.key) {
+                case 'Escape':
+                    closeLightbox();
+                    break;
+                case 'ArrowLeft':
+                    navigateLightbox(-1);
+                    break;
+                case 'ArrowRight':
+                    navigateLightbox(1);
+                    break;
+            }
+        });
+
+        // Close lightbox when clicking on backdrop
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLightbox();
+            }
+        });
+
+        // Prevent card click from triggering backdrop close
+        document.querySelector('.lightbox-content').addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initArtworks();
+        });
+    </script>
+</body>
 </html>
 '''
 
 ADMIN_HTML = '''
 <!doctype html>
 <html>
-  <head>
+<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Admin - Portfolio</title>
+    <title>Admin - Runveer Portfolio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-      body{font-family:system-ui, sans-serif;padding:24px;max-width:1200px;margin:0 auto}
-      .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}
-      .alert{background:#d4edda;color:#155724;padding:12px;border-radius:6px;margin-bottom:16px;border:1px solid #c3e6cb}
-      .alert.error{background:#f8d7da;color:#721c24;border-color:#f5c6cb}
-      form{display:flex;flex-direction:column;gap:12px;max-width:600px;margin-bottom:40px}
-      input,textarea,select{padding:12px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:inherit}
-      button{background:#2196F3;color:#fff;padding:12px 20px;border:none;border-radius:6px;cursor:pointer;font-size:inherit}
-      button:hover{background:#0b7dda}
-      button.delete{background:#dc3545}
-      button.delete:hover{background:#c82333}
-      img.thumb{max-width:120px;border-radius:6px;height:80px;object-fit:cover}
-      table{width:100%;border-collapse:collapse;margin-top:20px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
-      th{background:#f8f9fa;padding:16px;text-align:left;font-weight:600;border-bottom:1px solid #dee2e6}
-      td{padding:16px;border-bottom:1px solid #dee2e6}
-      tr:last-child td{border-bottom:none}
-      .actions{display:flex;gap:8px}
-      .section{margin-bottom:40px;padding-bottom:32px;border-bottom:1px solid #eee}
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .admin-header {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        .admin-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        .admin-nav {
+            background: #2C1810;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .admin-nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .admin-nav a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .admin-content {
+            padding: 2rem;
+        }
+        .alert {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .upload-form {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #8B4513;
+        }
+        .btn {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(139, 69, 19, 0.3);
+        }
+        .btn.delete {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        .artworks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .artwork-item {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .artwork-item:hover {
+            transform: translateY(-5px);
+        }
+        .artwork-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .artwork-details {
+            padding: 1rem;
+        }
+        .artwork-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        .artwork-date {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .artwork-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
     </style>
-  </head>
-  <body>
-    <div class="header">
-      <h1>Portfolio Admin</h1>
-      <div>
-        <a href="/">View Portfolio</a> | 
-        <a href="/logout">Logout</a>
-      </div>
-    </div>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1><i class="fas fa-palette"></i> Runveer Admin</h1>
+            <p>Manage Your Artistic Portfolio</p>
+        </div>
+        
+        <div class="admin-nav">
+            <div>
+                <a href="/"><i class="fas fa-home"></i> View Portfolio</a>
+            </div>
+            <div>
+                <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert{% if category == 'error' %} error{% endif %}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+        <div class="admin-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
 
-    <div class="section">
-      <h2>Upload New Work</h2>
-      <form method="post" action="/admin/upload" enctype="multipart/form-data">
-        <input type="text" name="title" placeholder="Title" required>
-        <textarea name="description" placeholder="Description" rows="3"></textarea>
-        <input type="file" name="file" accept="image/*" required>
-        <button type="submit">Upload Image</button>
-      </form>
-    </div>
-
-    <div class="section">
-      <h2>Existing Works ({{ works|length }})</h2>
-      {% if works %}
-      <table>
-        <thead>
-          <tr>
-            <th>Preview</th>
-            <th>Details</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for work in works %}
-          <tr>
-            <td><img src="/static/uploads/{{ work.filename }}" class="thumb" alt="{{ work.title }}"></td>
-            <td>
-              <strong>{{ work.title }}</strong><br>
-              {{ work.description or 'No description' }}<br>
-              <small>Added: {{ work.created_at[:16] }}</small>
-            </td>
-            <td>
-              <div class="actions">
-                <form method="post" action="/admin/delete" onsubmit="return confirm('Delete this work?')">
-                  <input type="hidden" name="id" value="{{ work.id }}">
-                  <button type="submit" class="delete">Delete</button>
+            <div class="upload-form">
+                <h2><i class="fas fa-upload"></i> Upload New Artwork</h2>
+                <form method="post" action="/admin/upload" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="title">Artwork Title</label>
+                        <input type="text" class="form-control" id="title" name="title" placeholder="Enter artwork title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea class="form-control" id="description" name="description" placeholder="Describe your artwork" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="file">Choose Image</label>
+                        <input type="file" class="form-control" id="file" name="file" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn"><i class="fas fa-cloud-upload-alt"></i> Upload Artwork</button>
                 </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p>No works yet. Upload your first image above.</p>
-      {% endif %}
+            </div>
+
+            <div class="artworks-section">
+                <h2><i class="fas fa-images"></i> Manage Artworks ({{ works|length }})</h2>
+                {% if works %}
+                <div class="artworks-grid">
+                    {% for work in works %}
+                    <div class="artwork-item">
+                        <img src="/static/uploads/{{ work.filename }}" alt="{{ work.title }}" class="artwork-image">
+                        <div class="artwork-details">
+                            <div class="artwork-title">{{ work.title }}</div>
+                            <div class="artwork-date">Added: {{ work.created_at[:16] }}</div>
+                            <div class="artwork-actions">
+                                <form method="post" action="/admin/delete" onsubmit="return confirm('Are you sure you want to delete this artwork?')" style="width: 100%;">
+                                    <input type="hidden" name="id" value="{{ work.id }}">
+                                    <button type="submit" class="btn delete" style="width: 100%;">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 3rem; color: #666;">
+                    <i class="fas fa-image" style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <h3>No Artworks Yet</h3>
+                    <p>Start by uploading your first masterpiece above!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
-  </body>
+</body>
 </html>
 '''
 
 LOGIN_HTML = '''
 <!doctype html>
 <html>
-  <head>
+<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Admin Login</title>
+    <title>Login - Runveer Portfolio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-      body{font-family:system-ui, sans-serif;padding:24px;max-width:400px;margin:60px auto}
-      .login-card{background:#fff;padding:32px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.1)}
-      h1{text-align:center;margin:0 0 32px 0;color:#333}
-      form{display:flex;flex-direction:column;gap:16px}
-      input{padding:14px;border:1px solid #ddd;border-radius:8px;font-size:16px}
-      button{background:#2196F3;color:#fff;padding:14px;border:none;border-radius:8px;cursor:pointer;font-size:16px;font-weight:500}
-      button:hover{background:#0b7dda}
-      .alert{background:#f8d7da;color:#721c24;padding:12px;border-radius:6px;margin-bottom:16px}
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #F4A460 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .logo {
+            font-size: 3rem;
+            color: #8B4513;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            color: #2C1810;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 600;
+        }
+        .form-control {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #8B4513;
+        }
+        .btn {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(139, 69, 19, 0.3);
+        }
+        .alert {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            border: 1px solid #f5c6cb;
+        }
     </style>
-  </head>
-  <body>
-    <div class="login-card">
-      <h1>Admin Login</h1>
-      
-      {% with messages = get_flashed_messages() %}
-        {% if messages %}
-          <div class="alert">
-            {% for message in messages %}
-              {{ message }}
-            {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <i class="fas fa-palette"></i>
+        </div>
+        <h1>Runveer</h1>
+        <p class="subtitle">Artist Portfolio Admin</p>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert">
+                    {% for message in messages %}
+                        {{ message }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
 
-      <form method="post" action="/login">
-        <input name="username" placeholder="Username" required autofocus>
-        <input name="password" type="password" placeholder="Password" required>
-        <button type="submit">Login</button>
-      </form>
+        <form method="post" action="/login">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="btn">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+        </form>
     </div>
-  </body>
+</body>
 </html>
 '''
 
@@ -748,10 +1413,13 @@ def main():
         logger.warning("Telegram token or chat ID not set; Telegram integration disabled")
     
     # Start Flask app
-    logger.info("Starting Flask app on http://127.0.0.1:5000")
+    logger.info("Starting Flask app")
+    
+    # Get port from environment variable (for Render)
+    port = int(os.environ.get('PORT', 5000))
     
     try:
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        app.run(host='0.0.0.0', port=port, debug=False)
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     finally:
