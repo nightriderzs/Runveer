@@ -7,7 +7,7 @@ Features:
 - SQLite database to store "works" metadata
 - Admin login with password hashing
 - Admin UI to upload images, edit/delete entries
-- Telegram integration for automatic image downloads
+- Telegram integration for automatic image downloads (optional)
 - Thumbnail generation
 - Enhanced security and file validation
 
@@ -45,18 +45,25 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from dotenv import load_dotenv
 
 # Try to import telegram bot
+TELEGRAM_AVAILABLE = False
 try:
     from telegram import Bot, Update
     from telegram.ext import Updater, MessageHandler, Filters, CallbackContext
+    TELEGRAM_AVAILABLE = True
 except ImportError:
-    Bot = None
     print("Telegram bot features disabled: python-telegram-bot not installed")
+    # Create dummy classes for type hints
+    class Update:
+        pass
+    class CallbackContext:
+        pass
 
 # Try to import PIL for image processing
+PIL_AVAILABLE = False
 try:
     from PIL import Image, ImageOps
+    PIL_AVAILABLE = True
 except ImportError:
-    Image = None
     print("Thumbnail generation disabled: Pillow not installed")
 
 # --- Config ---
@@ -306,7 +313,7 @@ def allowed_file_ext(filename):
 
 def validate_image(file_stream):
     """Validate image file using PIL if available"""
-    if Image is None:
+    if not PIL_AVAILABLE:
         return True  # Skip validation if PIL not available
     
     try:
@@ -405,7 +412,7 @@ def ensure_admin():
 
 def create_thumbnail(original_path, filename):
     """Create thumbnail version of image"""
-    if Image is None:
+    if not PIL_AVAILABLE:
         return None
     
     try:
@@ -428,7 +435,7 @@ def create_thumbnail(original_path, filename):
 
 def optimize_image(image_path):
     """Optimize image file size"""
-    if Image is None:
+    if not PIL_AVAILABLE:
         return
     
     try:
@@ -621,12 +628,15 @@ def too_large(e):
 @app.errorhandler(404)
 def not_found(e):
     """Handle 404 errors"""
-    return render_template('404.html'), 404
+    return "Page not found", 404
 
 # --- Telegram integration ---
 
-def handle_telegram_photo(update: Update, context: CallbackContext):
+def handle_telegram_photo(update, context):
     """Handle incoming Telegram photos"""
+    if not TELEGRAM_AVAILABLE:
+        return
+        
     try:
         chat_id = str(update.effective_chat.id)
         if str(TELEGRAM_CHAT_ID) != chat_id:
@@ -694,9 +704,9 @@ def handle_telegram_photo(update: Update, context: CallbackContext):
 
 def start_telegram_bot(token, allowed_chat_id):
     """Start Telegram bot in background thread"""
-    if Bot is None:
+    if not TELEGRAM_AVAILABLE:
         logger.warning("python-telegram-bot not installed; Telegram integration disabled")
-        return
+        return None
     
     try:
         updater = Updater(token=token, use_context=True)
@@ -714,6 +724,7 @@ def start_telegram_bot(token, allowed_chat_id):
         
     except Exception as e:
         logger.error(f"Failed to start Telegram bot: {e}")
+        return None
 
 # --- App startup ---
 
