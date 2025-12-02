@@ -24,11 +24,11 @@ from typing import Dict, Optional, Set, List, Tuple, Any
 from datetime import datetime
 
 # =============================================================================
-# MODULE 1: UI MANAGER - Handles all user interface components
+# MODULE 1: UI MANAGER
 # =============================================================================
 
 class UIManager:
-    """Manages all user interface components including menus, progress bars, and status messages."""
+    """Manages all user interface components."""
     
     def __init__(self):
         self.rich_available = self._setup_rich()
@@ -41,10 +41,8 @@ class UIManager:
             from rich.panel import Panel
             from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
             from rich.table import Table
-            from rich.prompt import Prompt, Confirm, IntPrompt
+            from rich.prompt import Prompt, Confirm
             from rich import box
-            from rich.layout import Layout
-            from rich.columns import Columns
             return True
         except ImportError:
             return False
@@ -68,35 +66,18 @@ class UIManager:
 """
         if self.rich_available:
             from rich.panel import Panel
-            from rich.columns import Columns
-            from rich.text import Text
-            
-            title = Text("🐍 Enhanced Python/Streamlit Script Runner", style="bold blue")
-            subtitle = Text("with Git Integration & Deployment", style="bold cyan")
-            self.console.print(Columns([title, subtitle], align="center", equal=True))
-            self.console.print(Panel.fit(banner_text, style="bold blue"))
-            self.console.print("=" * 80)
+            self.console.print(Panel.fit(banner_text, title="🐍 Enhanced Script Runner with Git Integration", style="bold blue"))
+            self.console.print("=" * 70)
         else:
             print(banner_text)
-            print("🐍 Enhanced Python/Streamlit Script Runner with Git Integration & Deployment")
-            print("=" * 70)
+            print("🐍 Enhanced Script Runner with Git Integration")
+            print("=" * 60)
     
     def print_panel(self, title: str, content: str, style: str = "blue") -> None:
         """Print content in a styled panel."""
         if self.rich_available:
             from rich.panel import Panel
-            from rich.text import Text
-            from rich.markdown import Markdown
-            
-            # Format content based on type
-            if "\n" in content and len(content) > 100:
-                content_display = Text(content)
-            elif content.startswith("#") or content.startswith("- "):
-                content_display = Markdown(content)
-            else:
-                content_display = Text(content)
-            
-            self.console.print(Panel(content_display, title=title, style=style))
+            self.console.print(Panel(content, title=title, style=style))
         else:
             print(f"\n{title}")
             print("-" * len(title))
@@ -157,14 +138,11 @@ class UIManager:
         """Display the main menu."""
         if self.rich_available:
             from rich.panel import Panel
-            from rich.columns import Columns
             
             menu_items = [
                 "[bold cyan]1.[/bold cyan] 📜 Run Script",
                 "[bold cyan]2.[/bold cyan] 🔧 Manage Git Repository",
                 "[bold cyan]3.[/bold cyan] 🚀 Deploy to Cloud",
-                "[bold cyan]4.[/bold cyan] ⚙️  Configure Settings",
-                "[bold cyan]5.[/bold cyan] ❓ Help / Documentation",
                 "[bold cyan]q.[/bold cyan] 🚪 Quit"
             ]
             
@@ -180,7 +158,7 @@ class UIManager:
             from rich.prompt import Prompt
             choice = Prompt.ask(
                 "[bold yellow]Select an option[/bold yellow]",
-                choices=["1", "2", "3", "4", "5", "q", "quit"],
+                choices=["1", "2", "3", "q", "quit"],
                 default="1"
             )
             return choice
@@ -190,8 +168,6 @@ class UIManager:
             print("1. 📜 Run Script")
             print("2. 🔧 Manage Git Repository")
             print("3. 🚀 Deploy to Cloud")
-            print("4. ⚙️  Configure Settings")
-            print("5. ❓ Help / Documentation")
             print("q. 🚪 Quit")
             print("=" * 30)
             return input("Select an option: ").strip()
@@ -205,9 +181,7 @@ class UIManager:
                 "[bold cyan]1.[/bold cyan] 🔧 Setup Git Repository",
                 "[bold cyan]2.[/bold cyan] 📊 Check Git Status",
                 "[bold cyan]3.[/bold cyan] 📝 Commit & Push Changes",
-                "[bold cyan]4.[/bold cyan] 🔄 Pull Latest Changes",
-                "[bold cyan]5.[/bold cyan] 🚀 Create Deployment Configs",
-                "[bold cyan]6.[/bold cyan] ⚙️  Configure Git Settings",
+                "[bold cyan]4.[/bold cyan] 🚀 Create Deployment Configs",
                 "[bold cyan]b.[/bold cyan] ↩️  Back to Main Menu"
             ]
             
@@ -223,7 +197,7 @@ class UIManager:
             from rich.prompt import Prompt
             choice = Prompt.ask(
                 "[bold yellow]Select an option[/bold yellow]",
-                choices=["1", "2", "3", "4", "5", "6", "b", "back"],
+                choices=["1", "2", "3", "4", "b", "back"],
                 default="1"
             )
             return choice
@@ -233,9 +207,7 @@ class UIManager:
             print("1. 🔧 Setup Git Repository")
             print("2. 📊 Check Git Status")
             print("3. 📝 Commit & Push Changes")
-            print("4. 🔄 Pull Latest Changes")
-            print("5. 🚀 Create Deployment Configs")
-            print("6. ⚙️  Configure Git Settings")
+            print("4. 🚀 Create Deployment Configs")
             print("b. ↩️  Back to Main Menu")
             print("=" * 30)
             return input("Select an option: ").strip()
@@ -252,7 +224,6 @@ class UIManager:
             table.add_column("Type", justify="center", style="green")
             table.add_column("Dependencies", justify="center", style="yellow")
             table.add_column("Privileges", justify="center", style="red")
-            table.add_column("Git Status", justify="center", style="blue")
             
             for num, script in scripts.items():
                 script_type = "Streamlit" if ScriptAnalyzer.is_streamlit_app(script) else "Python"
@@ -261,27 +232,25 @@ class UIManager:
                 
                 deps_status = "📦" if has_deps else "✅"
                 sudo_status = "🔒" if needs_sudo else "🔓"
-                git_status = "✅"  # Default, actual status would come from GitManager
                 
                 table.add_row(
                     str(num),
                     script.name,
                     script_type,
                     deps_status,
-                    sudo_status,
-                    git_status
+                    sudo_status
                 )
             
             self.console.print(table)
         else:
             print("\n📜 Available Python scripts:")
-            print("-" * 80)
+            print("-" * 60)
             for num, script in scripts.items():
                 script_type = "Streamlit app" if ScriptAnalyzer.is_streamlit_app(script) else "Python script"
                 has_deps = " (needs env)" if ScriptAnalyzer.has_external_dependencies(script) else " (no deps)"
                 needs_sudo = " (needs sudo)" if ScriptAnalyzer.requires_sudo_privileges(script) else ""
-                print(f"{num:2d}. {script.name:25} ({script_type}{has_deps}{needs_sudo})")
-            print("-" * 80)
+                print(f"{num:2d}. {script.name:20} ({script_type}{has_deps}{needs_sudo})")
+            print("-" * 60)
     
     def get_user_choice(self, scripts: Dict[int, Path]) -> Optional[Path]:
         """Get user's script selection."""
@@ -336,11 +305,11 @@ class UIManager:
 
 
 # =============================================================================
-# MODULE 2: SCRIPT ANALYZER - Analyzes scripts for dependencies and properties
+# MODULE 2: SCRIPT ANALYZER
 # =============================================================================
 
 class ScriptAnalyzer:
-    """Analyzes Python scripts to detect dependencies, requirements, and script properties."""
+    """Analyzes Python scripts to detect dependencies and properties."""
     
     @staticmethod
     def find_python_scripts(directory: str = ".") -> Dict[int, Path]:
@@ -521,11 +490,11 @@ class ScriptAnalyzer:
 
 
 # =============================================================================
-# MODULE 3: DEPENDENCY MANAGER - Manages virtual environments and dependencies
+# MODULE 3: DEPENDENCY MANAGER
 # =============================================================================
 
 class DependencyManager:
-    """Manages virtual environments, dependency installation, and project fingerprinting."""
+    """Manages virtual environments and dependencies."""
     
     def __init__(self, ui_manager: UIManager):
         self.ui = ui_manager
@@ -559,8 +528,6 @@ class DependencyManager:
         """Generate requirements.txt based on script imports."""
         all_imports = ScriptAnalyzer.extract_imports(script_path)
         
-        self.ui.print_status(f"Detected imports: {all_imports}", "info")
-        
         local_modules = {'db_utils'}
         dependency_map = {
             'talib': ['TA-Lib'],
@@ -593,33 +560,22 @@ class DependencyManager:
         requirements = set()
         for imp in all_imports:
             if imp in local_modules:
-                self.ui.print_status(f"Skipping local module: {imp}", "info")
                 continue
             if ScriptAnalyzer.is_stdlib_module(imp):
-                self.ui.print_status(f"Skipping stdlib module: {imp}", "info")
                 continue
                 
-            self.ui.print_status(f"Processing import: {imp}", "info")
-            
             if imp in dependency_map:
                 mapped_packages = dependency_map[imp]
                 requirements.update(mapped_packages)
-                self.ui.print_status(f"Mapped {imp} to {mapped_packages}", "success")
             else:
                 requirements.add(imp)
-                self.ui.print_status(f"Added direct package: {imp}", "success")
         
         # Force include python-dotenv if we have database-related imports
         if any(imp in all_imports for imp in ['psycopg2', 'dotenv']):
             requirements.add('python-dotenv')
-            self.ui.print_status("Added python-dotenv (required for database utils)", "info")
         
         if 'streamlit' in all_imports or ScriptAnalyzer.is_streamlit_app(script_path):
             requirements.add('streamlit')
-        
-        # Add common development dependencies
-        if self.ui.confirm_action("Include development dependencies (pytest, black, flake8)?"):
-            requirements.update(['pytest', 'black', 'flake8', 'mypy'])
         
         if not requirements:
             self.ui.print_status("No external dependencies found", "info")
@@ -629,20 +585,7 @@ class DependencyManager:
             for req in sorted(requirements):
                 f.write(f"{req}\n")
         
-        # Create requirements-dev.txt
-        dev_requirements = {'pytest', 'black', 'flake8', 'mypy', 'pre-commit'}
-        with open("requirements-dev.txt", 'w') as f:
-            for req in sorted(dev_requirements):
-                f.write(f"{req}\n")
-        
-        if self.ui.rich_available:
-            req_list = "\n".join([f"  • {req}" for req in sorted(requirements)])
-            self.ui.print_panel("📋 Generated requirements.txt", req_list, "green")
-            self.ui.print_status("Also created requirements-dev.txt for development", "info")
-        else:
-            print("📋 Generated requirements.txt with detected dependencies")
-            print("Also created requirements-dev.txt for development")
-            
+        self.ui.print_status("📋 Generated requirements.txt", "success")
         return True
     
     def setup_venv(self, venv_name: str = "venv", current_fingerprint: str = "") -> Optional[Path]:
@@ -729,36 +672,12 @@ class DependencyManager:
             
             if result.returncode == 0:
                 self.ui.print_status("✅ Dependencies installed successfully", "success")
-                if result.stdout:
-                    self.ui.print_status("Installation output:", "info")
-                    print(result.stdout)
             else:
                 self.ui.print_status("❌ Failed to install some dependencies", "error")
                 if result.stderr:
                     self.ui.print_status("Error details:", "error")
                     print(result.stderr)
                 
-                # Try installing packages one by one
-                self.ui.print_status("Attempting individual package installation...", "warning")
-                with open("requirements.txt", 'r') as f:
-                    requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
-                
-                for req in requirements:
-                    try:
-                        self.ui.print_status(f"Installing {req}...", "progress")
-                        subprocess.run(
-                            [pip_path, "install", req],
-                            check=True,
-                            capture_output=True,
-                            text=True,
-                            timeout=120
-                        )
-                        self.ui.print_status(f"✅ {req} installed successfully", "success")
-                    except subprocess.CalledProcessError as e:
-                        self.ui.print_status(f"❌ Failed to install {req}", "error")
-                        if e.stderr:
-                            print(e.stderr)
-            
         except subprocess.TimeoutExpired:
             self.ui.print_status("❌ Installation timeout - try again", "error")
         except Exception as e:
@@ -886,11 +805,11 @@ class DependencyManager:
 
 
 # =============================================================================
-# MODULE 4: GIT MANAGER - Handles Git repository setup and management
+# MODULE 4: GIT MANAGER - Complete Git Integration
 # =============================================================================
 
 class GitManager:
-    """Manages Git repository setup, credentials, and deployment configuration."""
+    """Complete Git repository management with deployment configuration."""
     
     def __init__(self, ui_manager: UIManager):
         self.ui = ui_manager
@@ -911,8 +830,7 @@ class GitManager:
             'github_token': '',
             'render_token': '',
             'preferred_remote': 'github',
-            'auto_commit': True,
-            'protected_branches': ['main', 'master']
+            'auto_commit': True
         }
     
     def _save_config(self) -> None:
